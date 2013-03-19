@@ -25,18 +25,15 @@ class ApiView(ResourceView):
 @swagger.route(
     '/api-function', methods=['POST'],
     description='The description of this API view',
-    endpoints=[Endpoint(
-        Endpoint(
-            '/api-function/',
-            login_description,
-            operations=[Operation(
-                'POST', 'function', 'More description!',
-                response_class='Token',
-                parameters={
-                    'data': Parameter(
-                        'body', 'Input', 'Whatever you need to pass in',
-                        required=True)},
-                error_responses={401: 'Invalid e-mail/password'})])],
+    operations=[Operation(
+        'POST', 'function',
+        notes='Additional notes for this operation',
+        response_class='Token',
+        parameters={
+            'data': Parameter(
+                'body', 'Input', 'Whatever you need to pass in',
+                required=True)},
+        error_responses={401: 'Invalid e-mail/password'})]
     models={
         'Input': Model('Input', {
             'input_string': Property('string', 'Input to the function')}),
@@ -115,6 +112,13 @@ def first_value(_name, obj, *args, **kwargs):
             return v
     # if nothing works, return the last value
     return v
+
+
+def view_url_to_swagger(url):
+    """
+    Converts a view URL with `<>` arguments into Swagger-style `{}` arguments.
+    """
+    return url.replace('<', '{').replace('>', '}')
 
 
 class Api(list):
@@ -331,6 +335,14 @@ class Swagger(object):
         name = kwargs.pop('name', None)
         description = kwargs.pop('description', None)
         endpoints = kwargs.pop('endpoints', None)
+        operations = kwargs.pop('operations', None)
+        if operations:
+            for op in operations:
+                if not op.get('summary'):
+                    op['summary'] = description
+        if endpoints is None:
+            endpoints = [Endpoint(view_url_to_swagger(url), description,
+                                  operations=operations)]
         models = kwargs.pop('models', None)
         route_decorator = self.app.route('%s%s' % (self.url_prefix, url),
                                          **kwargs)
@@ -375,7 +387,7 @@ class Swagger(object):
         self.add_api(name, endpoints, models, description)
 
     def endpoints_from_view(self, _view, _name, _url, **kwargs):
-        url = _url.replace('<', '{').replace('>', '}')  # noqa
+        url = view_url_to_swagger(_url)  # noqa
         endpoints = []
         resource = _view.resource
         document_name = resource.document.__name__
