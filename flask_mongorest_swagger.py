@@ -226,8 +226,14 @@ class Model(dict):
         """
         id_ = resource.document.__name__
         properties = {}
-        fields = resource.fields or resource.document._fields
+        try:
+            fields = resource.get_fields()
+        except:
+            fields = resource.fields or resource.document._fields
+        excluded_fields = getattr(resource, 'excluded_fields', [])
         for name in fields:
+            if name in excluded_fields:
+                continue
             field = resource.document._fields[name]
             prop = Property.from_field(field)
             if prop is not None:
